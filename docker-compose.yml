@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # The Database Service: PostgreSQL with pgvector
+  postgres:
+    # Use the official pgvector image which extends standard PostgreSQL
+    image: pgvector/pgvector:pg16
+    container_name: copilot_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secretpassword
+      POSTGRES_DB: copilot_db
+    ports:
+      # Map your host's port 5432 to the container's port 5432
+      - "5432:5432"
+    volumes:
+      # Create a persistent volume so data isn't lost when the container stops
+      - postgres_data:/var/lib/postgresql/data
+      # Mount the schema file to initialize the database on first run
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      # Ensure the database is ready before other services try to connect
+      test: ["CMD-SHELL", "pg_isready -U postgres -d copilot_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # The Caching Service: Redis
+  redis:
+    # Use the lightweight Alpine Linux version of Redis
+    image: redis:7-alpine
+    container_name: copilot_redis
+    ports:
+      # Map your host's port 6379 to the container's port 6379
+      - "6379:6379"
+    volumes:
+      # Create a persistent volume for Redis data
+      - redis_data:/data
+    healthcheck:
+      # Ensure Redis is responding to pings
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+# Define the named volumes used by the services
+volumes:
+  postgres_data:
+  redis_data:
